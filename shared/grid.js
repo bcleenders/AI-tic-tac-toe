@@ -10,14 +10,6 @@ module.exports.init = function() {
 	return this;
 }
 
-module.exports.getFields = function() {
-	return grid;
-}
-
-module.exports.setFields = function(fields) {
-	grid = fields;
-}
-
 module.exports.toString = function() {
 	return (  grid[0]+" "+grid[1]+" "+grid[2]+"\n"
 			+ grid[3]+" "+grid[4]+" "+grid[5]+"\n"
@@ -45,6 +37,10 @@ module.exports.mark = function(space, player) {
 }
 
 module.exports.set = function(space, value) {
+	if(grid[space] != -1 && value != -1) {
+		console.log("Invalid set!");
+		process.exit(1);
+	}
 	grid[space] = value;
 }
 
@@ -76,4 +72,19 @@ module.exports.getWinner = function() {
 			return winner;
 	}
 	return -1;
+}
+
+module.exports.getState = function() {
+	var state = 0;
+	for(var i = 0; i < grid.length; i++)
+		if(grid[i] >= 0)
+			state += (grid[i] + 1) * Math.pow(3, i);
+	
+	return state;
+}
+
+module.exports.invert = function() {
+	for(var i = 0; i < 9; i++)
+		if(grid[i] >= 0)
+			grid[i] = 1 - grid[i];
 }
