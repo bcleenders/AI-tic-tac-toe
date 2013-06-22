@@ -1,35 +1,37 @@
 var fs = require('fs'),
-	file = "./ai_trained_scores.dump",
+	file = "./ai_trained_scores_1_large.dump",
 	trained_scores = [],
 	trained_counts = [],
 	train = false,
 	is_player1 = true,
-	previous_new_state = -1;
+	previous_new_state = -1,
+	move_count = 0;
 
 module.exports.init = function(in_train_mode, player_id) {
 	// load training data from file
-	if(in_train_mode) {
-		if(fs.existsSync(file)) {
-			var file_contents = fs.readFileSync(file);
-			trained_scores = JSON.parse(file_contents).scores;
-			trained_counts = JSON.parse(file_contents).counts;
-		}
+	train = in_train_mode;
 
-		var c = 0;
-		for(var i = 0; i < trained_scores.length; i++)
-			if(trained_scores[i] > 0)
-				c++;
-		console.log("Encountered " + c + " not-null values");
-		console.log("There are " + Math.pow(3, 9) + " entries");
+	if(train)
+		console.log("AI player running in train mode");
 
-
-		train = true;
+	if(fs.existsSync(file)) {
+		var file_contents = fs.readFileSync(file);
+		trained_scores = JSON.parse(file_contents).scores;
+		trained_counts = JSON.parse(file_contents).counts;
 	}
+
+	var c = 0;
+	for(var i = 0; i < trained_scores.length; i++)
+		if(trained_scores[i] > 0)
+			c++;
+	console.log("Encountered " + c + " not-null values");
+	console.log("There are " + Math.pow(3, 9) + " entries");
 
 	is_player1 = (player_id == 0);
 }
 
 module.exports.getTurn = function(grid) {
+	move_count++;
 	if(grid.hasEnded()) {
 		console.log("Error; game has ended");
 		process.exit(1);
@@ -38,7 +40,7 @@ module.exports.getTurn = function(grid) {
 	if(train) {
 		var move;
 		// mix between random moves and a strategy
-		if(Math.random() < 0.9)
+		if(Math.random() < decide_best_vs_random())
 			move = get_best_move(grid);
 		else
 			move = get_random_move(grid);
@@ -50,6 +52,18 @@ module.exports.getTurn = function(grid) {
 		// only pick the moves that seem best
 		return get_best_move(grid);
 	}
+}
+
+function decide_best_vs_random() {
+	return 1;
+
+	if(move_count > 1000000)
+		return 0.95;
+	if(move_count > 100000)
+		return 0.7
+	if(move_count > 50000)
+		return 0.5
+	return 0
 }
 
 function evaluate(move, old_grid) {
@@ -75,7 +89,7 @@ function evaluate(move, old_grid) {
 		var old_score = trained_scores[old_state];
 		var new_score = trained_scores[new_state];
 		var learning_factor = alpha(trained_counts[old_state]);
-		var gamma = 0.8;
+		var gamma = 0.95;
 
 		var updated_score = old_score + learning_factor*(gamma*new_score - old_score);
 		trained_scores[old_state] = updated_score;
@@ -91,7 +105,7 @@ function alpha(count) {
 
 function get_best_move(grid) {
 	var best = get_highest_move(grid);
-	if(best > -1)
+	if(best >= 0)
 		return best;
 	else
 		return get_random_move(grid);
@@ -99,34 +113,41 @@ function get_best_move(grid) {
 
 // Checks all possibile moves, and selects the best
 function get_highest_move(grid) {
-	return -1;
 	var empty_fields = grid.getFreeSpaces();
 
 	// No training data was available
 	if(empty_fields.length == 0)
 		return -1;
 
+	for (var i = empty_fields.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = empty_fields[i];
+        empty_fields[i] = empty_fields[j];
+        empty_fields[j] = temp;
+    }
+
 	// Initialize the first iteration
 	var curr_highest = -1;
 	var curr_score = -1;
 
-	for(var i = 1; i < empty_fields.length; i++) {
-		grid.set(i, 0);
+	for(var i = 0; i < empty_fields.length; i++) {
+		grid.set(empty_fields[i], 0);
+
 		var state = grid2state(grid);
-		if(trained_scores[state] != null && trained_scores[state] > curr_score || curr_highest == -1) {
-			curr_highest = i;
+		if(trained_scores[state] > curr_score || curr_highest == -1) {
+			curr_highest = empty_fields[i];
 			curr_score = trained_scores[state];
 		}
 
 		// Return to previous state
-		grid.set(i, -1);
+		grid.set(empty_fields[i], -1);
 	}
 
 	return curr_highest;
 }
 
 function get_random_move(grid) {
-	var free = grid.getFreeSpaces();
+	var free = grid.getFreeSpaces();	
 	var random = Math.random() * free.length | 0;
 
 	return free[random];
