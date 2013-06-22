@@ -10,8 +10,12 @@ module.exports.init = function() {
 	return this;
 }
 
-module.exports.state = function() {
+module.exports.getFields = function() {
 	return grid;
+}
+
+module.exports.setFields = function(fields) {
+	grid = fields;
 }
 
 module.exports.toString = function() {
@@ -24,6 +28,15 @@ module.exports.isFree = function(space) {
 	return grid[space] == -1
 }
 
+module.exports.getFreeSpaces = function() {
+	var freeSpaces = [];
+	for(var i = 0; i < grid.length; i++) {
+		if(this.isFree(i))
+			freeSpaces[freeSpaces.length] = i;
+	}
+	return freeSpaces;
+}
+
 module.exports.mark = function(space, player) {
 	if(this.isFree(space))
 		grid[space] = player;
@@ -31,16 +44,15 @@ module.exports.mark = function(space, player) {
 		console.log('Error; invalid move');
 }
 
+module.exports.set = function(space, value) {
+	grid[space] = value;
+}
+
 module.exports.hasEnded = function() {
 	if(this.getWinner() > -1)
 		return true;
 
-	var full = true;
-	for(var i = 0; i < 9; i++)
-		if(this.isFree(i))
-			return false;
-	
-	return true;
+	return this.getFreeSpaces().length == 0;
 }
 
 function checkForWinner(space1, space2, space3) {
@@ -63,4 +75,5 @@ module.exports.getWinner = function() {
 		if(winner > -1)
 			return winner;
 	}
+	return -1;
 }

@@ -4,9 +4,8 @@ module.exports.getTurn = function(grid) {
 		process.exit(1);
 	}
 
-	var rand = -1;
-	while(rand < 0 || !grid.isFree(rand)) {
-		rand = Math.random() * 9 | 0;
-	}
-	return rand;
+	var free = grid.getFreeSpaces();
+	var random = Math.random() * free.length | 0;
+
+	return free[random];
 }
