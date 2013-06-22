@@ -1,13 +1,13 @@
 var fs = require('fs'),
-	file = "./ai_trained_scores_1_large.dump",
+	file = "./ai_trained.dump",
 	trained_scores = [],
 	trained_counts = [],
-	train = false,
-	is_player1 = true,
+	train,
+	player_id,
 	previous_new_state = -1,
 	move_count = 0;
 
-module.exports.init = function(in_train_mode, player_id) {
+module.exports.init = function(in_train_mode, id) {
 	// load training data from file
 	train = in_train_mode;
 
@@ -27,7 +27,7 @@ module.exports.init = function(in_train_mode, player_id) {
 	console.log("Encountered " + c + " not-null values");
 	console.log("There are " + Math.pow(3, 9) + " entries");
 
-	is_player1 = (player_id == 0);
+	player_id = id;
 }
 
 module.exports.getTurn = function(grid) {
@@ -55,21 +55,13 @@ module.exports.getTurn = function(grid) {
 }
 
 function decide_best_vs_random() {
-	return 1;
-
-	if(move_count > 1000000)
-		return 0.95;
-	if(move_count > 100000)
-		return 0.7
-	if(move_count > 50000)
-		return 0.5
-	return 0
+	return 1 - 1/(move_count + 1);
 }
 
 function evaluate(move, old_grid) {
 	// Get some state info, and revert to the old grid
 	var old_state = grid2state(old_grid);
-	old_grid.set(move, 0);
+	old_grid.set(move, player_id);
 	var new_state = grid2state(old_grid);
 	var winning = (old_grid.getWinner() == 0);
 	old_grid.set(move, -1);
@@ -89,7 +81,7 @@ function evaluate(move, old_grid) {
 		var old_score = trained_scores[old_state];
 		var new_score = trained_scores[new_state];
 		var learning_factor = alpha(trained_counts[old_state]);
-		var gamma = 0.95;
+		var gamma = 0.8;
 
 		var updated_score = old_score + learning_factor*(gamma*new_score - old_score);
 		trained_scores[old_state] = updated_score;
@@ -99,26 +91,19 @@ function evaluate(move, old_grid) {
 	previous_new_state = new_state;
 }
 
+module.exports.punish = function() {
+	if(previous_new_state > -1)
+		trained_scores[previous_new_state] = -1;
+}
+
 function alpha(count) {
 	return 1/(1+count);
 }
 
 function get_best_move(grid) {
-	var best = get_highest_move(grid);
-	if(best >= 0)
-		return best;
-	else
-		return get_random_move(grid);
-}
-
-// Checks all possibile moves, and selects the best
-function get_highest_move(grid) {
 	var empty_fields = grid.getFreeSpaces();
 
-	// No training data was available
-	if(empty_fields.length == 0)
-		return -1;
-
+	// Shuffle the array
 	for (var i = empty_fields.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
         var temp = empty_fields[i];
@@ -131,7 +116,7 @@ function get_highest_move(grid) {
 	var curr_score = -1;
 
 	for(var i = 0; i < empty_fields.length; i++) {
-		grid.set(empty_fields[i], 0);
+		grid.set(empty_fields[i], player_id);
 
 		var state = grid2state(grid);
 		if(trained_scores[state] > curr_score || curr_highest == -1) {
@@ -159,7 +144,7 @@ function grid2state(grid) {
 	var fields = grid.getFields();
 
 	// Add 1 to invert the perspective, if 
-	var to_add = is_player1 ? 0 : 1;
+	var to_add = 1 - player_id;
 
 	for(var i = 0; i < fields.length; i++)
 		if(fields[i] >= 0)
@@ -176,5 +161,5 @@ module.exports.saveTrainedData = function() {
 	};
 	// write training data to file
 	fs.writeFileSync(file, JSON.stringify(train_data));
-	console.log("Saved trained data.\n");
+	console.log("Saved trained data to " + file + ".\n");
 }
