@@ -30,7 +30,7 @@ module.exports.getTurn = function(grid, id) {
 	if(tools.go_random(count))
 		move = tools.getRandom(grid);
 	else
-		move = get_best_move(grid);
+		move = pi(grid);
 
 	tools.simulate(move, grid, function(new_grid) {
 		var new_state = tools.grid2state(new_grid);
@@ -51,19 +51,22 @@ module.exports.getTurn = function(grid, id) {
 	return move;
 }
 
-function get_best_move(grid) {
+// Strategy
+function pi(grid) {
 	var moves = grid.getFreeSpaces();
 	return tools.selectHighestScore(moves, grid, trained_scores);
 }
 
-function getScore(state) {
+// Utility function
+function U(state) {
 	var score = trained_scores[state];
 	if(score == undefined)
 		return 0;
 	return score;
 }
 
-function getCount(state) {
+// Number of times we visited the state
+function N(state) {
 	var count = trained_counts[state];
 	if(count == undefined)
 		return 0;
@@ -76,11 +79,11 @@ function evaluate(old_state, new_state, winning) {
 	if(winning)
 		trained_scores[new_state] = 1;
 
-	var old_score = getScore(old_state);
-	var new_score = getScore(new_state);
+	var old_score = U(old_state);
+	var new_score = U(new_state);
 
-	trained_counts[old_state] = getCount(old_state) + 1;
-	alpha1 = tools.alpha(getCount(old_state));
+	trained_counts[old_state] = N(old_state) + 1;
+	alpha1 = tools.alpha(N(old_state));
 	var old_score = old_score + alpha1*(gamma*new_score - old_score);
 	trained_scores[old_state] = old_score;
 }
