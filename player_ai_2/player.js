@@ -3,7 +3,8 @@ var fs = require('fs'),
 	trained_scores = [],
 	trained_counts = [],
 	tools = require('./tools.js')(trained_scores, trained_counts),
-	count = 0;
+	count = 0,
+	prev_state = -1;
 
 if(fs.existsSync(file)) {
 	var file_contents = fs.readFileSync(file);
@@ -19,21 +20,26 @@ if(fs.existsSync(file)) {
 	console.log("Starting with " + c + " 0 < nodeValue < 1 nodes");
 }
 
-module.exports.getTurn = function(grid, id, test) {
+module.exports.getTurn = function(grid, id) {
 	if(id == 1)
 		grid.invert();
 	// From now on, let's suppose that we are player 0.
 
 	// Think of what move we should do
 	var move;
-	if(!test && tools.go_random(count))
+	if(tools.go_random(count))
 		move = tools.getRandom(grid);
 	else
 		move = get_best_move(grid);
 
-	// The learning step
-	evaluate(move, grid);
-
+	tools.simulate(move, grid, function(new_grid) {
+		var new_state = tools.grid2state(new_grid);
+		var winning = (new_grid.getWinner() == 0);
+		if(prev_state >= 0)
+			evaluate(prev_state, new_state, winning);
+		prev_state = new_state;
+	});
+	
 	// Do a rollback
 	if(id == 1)
 		grid.invert();
@@ -64,59 +70,23 @@ function getCount(state) {
 	return count;
 }
 
-function evaluate(move, grid, id) {
-	var old_state = tools.grid2state(grid);
-	var new_state = tools.getStateIfMarked(move, grid, 0);
+function evaluate(old_state, new_state, winning) {
+	var gamma = 0.9;
 
-	var winning = tools.simulate(move, grid, function(new_grid) {
-		return new_grid.getWinner() == 0;
-	});
-
-	// Set reward
-	if(winning) {
+	if(winning)
 		trained_scores[new_state] = 1;
-		trained_counts[new_state] = 1;
-	}
-	else {
-		
-	}
 
-	if(trained_counts[new_state] == undefined) {
-		trained_counts[new_state] = 1;
-		
-		trained_scores[new_state] = tools.simulate(move, grid, function(new_grid) {
-			tools.getEstimateScore(new_grid, 1);
-		});
-	}
-	else {
-		// Increase count
-		trained_counts[old_state] = getCount(old_state);
+	var old_score = getScore(old_state);
+	var new_score = getScore(new_state);
 
-		var old_score = getScore(old_state);
-		var new_score = getScore(new_state);
-
-		var learning_factor = tools.alpha(getCount(old_state));
-		var gamma = 0.9;
-
-		var updated_score = old_score + learning_factor*(gamma*new_score - old_score);
-		if(updated_score == undefined || updated_score == NaN)
-			console.log("Error in player evaluate function!");
-		trained_scores[old_state] = updated_score;
-
-		if(updated_score != gamma)
-			console.log("u.s. " + trained_scores[old_state]);
-	}
+	trained_counts[old_state] = getCount(old_state) + 1;
+	alpha1 = tools.alpha(getCount(old_state));
+	var old_score = old_score + alpha1*(gamma*new_score - old_score);
+	trained_scores[old_state] = old_score;
 }
 
-module.exports.punish = function(grid, id) {
-	if(id == 1)
-		grid.invert();
-
-	var state = tools.grid2state(grid);
-	//trained_scores[state] = -1;
-
-	if(id == 1)
-		grid.invert();
+module.exports.punish = function(id) {
+	trained_scores[prev_state] = -1;
 }
 
 module.exports.save = function() {

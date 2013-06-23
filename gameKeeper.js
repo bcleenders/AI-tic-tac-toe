@@ -1,12 +1,12 @@
 var player1 = require('./player_ai_2/player.js'),
-	player2 = require('./player_dumb/player.js'),
+	player2 = require('./player_random/player.js'),
 	players = [player1, player2],
 	grid = require('./shared/grid.js'),
 	starting_player = 0,
 	curr_player = starting_player,
 	scores = [0,0,0];
 
-var iterations = 100;
+var iterations = 500000;
 
 console.log("Running " + iterations + " training samples");
 

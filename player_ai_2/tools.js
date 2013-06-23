@@ -9,7 +9,7 @@ module.exports = function(ts, tc) {
 
 // Chances on true decrease for high counts.
 module.exports.go_random = function(count) {
-	return Math.random() < Math.pow( (1/ (1+count)), 0.05);
+	return Math.random() < 0.1;
 }
 
 module.exports.alpha = function(count) {
@@ -53,27 +53,32 @@ module.exports.grid2state = function(grid) {
 }
 
 module.exports.selectHighestScore = function(moves, grid, scores) {
-	moves = this.shuffle(moves);
+	return getMinMaxMove(moves, grid, scores, true);
+}
+
+module.exports.selectLowestScore = function(moves, grid, scores) {
+	return getMinMaxMove(moves, grid, scores, false);
+}
+
+function getMinMaxMove(moves, grid, scores, max) {
+	moves = module.exports.shuffle(moves);
 
 	var move = moves[0];
-	var state = this.getStateIfMarked(moves[0], grid, 1);
+	var state = module.exports.getStateIfMarked(moves[0], grid, (max * 1));
 
 	for(var i = 1; i < moves.length; i++) {
-		var other_state = this.getStateIfMarked(moves[i], grid, 1);
-		if(scores[state] < scores[other_state]) {
+		var other_state = module.exports.getStateIfMarked(moves[i], grid, (max * 1));
+		if( (scores[state] < scores[other_state] && max) ||
+			(scores[state] > scores[other_state] && !max)) {
 			move = moves[i];
 			state = other_state;
-
-			// This should give some results...
-			if(scores[other_state] > 0 && scores[other_state] < 1)
-				console.log('positive score; ' + scores[other_state]);
 		}
 	}
 
 	return move;
 }
 
-module.exports.getEstimateScore = function(grid, id) {
+module.exports.getEstimateScore = function(grid) {
 	var moves = grid.getFreeSpaces();
 
 	moves = this.shuffle(moves);
@@ -82,7 +87,8 @@ module.exports.getEstimateScore = function(grid, id) {
 	var low_move = moves[0];
 
 	for(i in moves) {
-		var state = this.getStateIfMarked(moves[i], grid, id);
+		// This is the opponents turn;
+		var state = this.getStateIfMarked(moves[i], grid, 1);
 
 		if(trained_scores[state] != undefined)
 			console.log("Not undefined train score");

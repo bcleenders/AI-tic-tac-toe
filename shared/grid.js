@@ -10,6 +10,10 @@ module.exports.init = function() {
 	return this;
 }
 
+module.exports.load = function(g) {
+	grid = g;
+}
+
 module.exports.toString = function() {
 	return (  grid[0]+" "+grid[1]+" "+grid[2]+"\n"
 			+ grid[3]+" "+grid[4]+" "+grid[5]+"\n"
@@ -39,6 +43,7 @@ module.exports.mark = function(space, player) {
 module.exports.set = function(space, value) {
 	if(grid[space] != -1 && value != -1) {
 		console.log("Invalid set!");
+		console.log(arguments.callee.caller.toString());
 		process.exit(1);
 	}
 	grid[space] = value;
