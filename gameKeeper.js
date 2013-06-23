@@ -1,12 +1,12 @@
-var player1 = require('./player_ai_2/player.js'),
-	player2 = require('./player_random/player.js'),
+var player1 = require('./player_ai/player.js'),
+	player2 = require('./player_dumb/player.js'),
 	players = [player1, player2],
 	grid = require('./shared/grid.js'),
-	starting_player = 0,
+	starting_player = 1,
 	curr_player = starting_player,
 	scores = [0,0,0];
 
-var iterations = 500000;
+var iterations = 50000;
 
 console.log("Running " + iterations + " training samples");
 
@@ -33,8 +33,8 @@ for(var i = 0; i< iterations; i++) {
 
 var total = scores[0] + scores[1] + scores[2];
 console.log("Draws;    " + scores[0] + " " + ((100 * scores[0]/total) + 0.5 | 0) + "%");
-console.log("Player 1; " + scores[1] + " " + ((100 * scores[1]/total) + 0.5 | 0) + "%");
-console.log("Player 2; " + scores[2] + " " + ((100 * scores[2]/total) + 0.5 | 0) + "%");
+console.log("Player 1; " + scores[1] + " " + ((100 * scores[1]/total) + 0.5 | 0) + "%  " + (starting_player == 0 ? " (starting)" : ""));
+console.log("Player 2; " + scores[2] + " " + ((100 * scores[2]/total) + 0.5 | 0) + "%  " + (starting_player == 1 ? " (starting)" : ""));
 
 if(false) {
 	if(typeof player1.save == 'function') 

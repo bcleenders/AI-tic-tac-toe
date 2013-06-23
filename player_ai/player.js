@@ -1,47 +1,100 @@
-var advisor = require('./advisor.js'),
-	train,
-	player_id,
-	previous_new_state = -1,
-	move_count = 0;
+var fs = require('fs'),
+	file = "ai_training_data.dump",
+	trained_scores = [],
+	trained_counts = [],
+	tools = require('./tools.js')(trained_scores, trained_counts),
+	count = 0,
+	prev_state = -1;
 
-module.exports.init = function(in_train_mode, id) {
-	// load training data from file
-	train = in_train_mode;
+if(fs.existsSync(file)) {
+	var file_contents = fs.readFileSync(file);
+	trained_scores = JSON.parse(file_contents).scores;
+	trained_counts = JSON.parse(file_contents).counts;
 
-	if(train)
-		console.log("AI player running in train mode");
-
-	player_id = id;
+	var c = 0;
+	for(i in trained_scores) {
+		var n = trained_scores[i];
+		if(0 < n && n < 1)
+			c++;
+	}
+	console.log("Starting with " + c + " 0 < nodeValue < 1 nodes");
 }
 
-module.exports.getTurn = function(grid) {
-	move_count++;
-	if(grid.hasEnded()) {
-		console.log("Error; game has ended");
-		process.exit(1);
-	}
+module.exports.getTurn = function(grid, id) {
+	if(id == 1)
+		grid.invert();
+	// From now on, let's suppose that we are player 0.
 
-	if(train) {
-		var move;
-		// mix between random moves and a strategy
-		if(Math.random() < decide_best_vs_random())
-			move = advisor.advise(grid, player_id);
-		else
-			var free = grid.getFreeSpaces();	
-			var random = Math.random() * free.length | 0;
-			return free[random];
+	// Think of what move we should do
+	var move;
+	if(tools.go_random(count))
+		move = tools.getRandom(grid);
+	else
+		move = get_best_move(grid);
 
-		advisor.evaluate(move, grid, player_id);
-		return move;
-	}
-	else {
-		// only pick the moves that seem best
-		return get_best_move(grid);
-	}
+	tools.simulate(move, grid, function(new_grid) {
+		var new_state = tools.grid2state(new_grid);
+		var winning = (new_grid.getWinner() == 0);
+		if(prev_state >= 0)
+			evaluate(prev_state, new_state, winning);
+		prev_state = new_state;
+	});
+	
+	// Do a rollback
+	if(id == 1)
+		grid.invert();
+
+	// Count this advise
+	count++;
+
+	// Return our desired move
+	return move;
 }
 
-function decide_best_vs_random() {
-	return 1 - 1/(move_count + 1);
+function get_best_move(grid) {
+	var moves = grid.getFreeSpaces();
+	return tools.selectHighestScore(moves, grid, trained_scores);
 }
 
-module.exports.saveTrainedData = advisor.saveTrainedData;
+function getScore(state) {
+	var score = trained_scores[state];
+	if(score == undefined)
+		return 0;
+	return score;
+}
+
+function getCount(state) {
+	var count = trained_counts[state];
+	if(count == undefined)
+		return 0;
+	return count;
+}
+
+function evaluate(old_state, new_state, winning) {
+	var gamma = 0.9;
+
+	if(winning)
+		trained_scores[new_state] = 1;
+
+	var old_score = getScore(old_state);
+	var new_score = getScore(new_state);
+
+	trained_counts[old_state] = getCount(old_state) + 1;
+	alpha1 = tools.alpha(getCount(old_state));
+	var old_score = old_score + alpha1*(gamma*new_score - old_score);
+	trained_scores[old_state] = old_score;
+}
+
+module.exports.punish = function(id) {
+	trained_scores[prev_state] = -1;
+}
+
+module.exports.save = function() {
+	var train_data = {
+		scores: trained_scores,
+		counts: trained_counts
+	};
+	// write training data to file
+	fs.writeFileSync(file, JSON.stringify(train_data));
+	console.log("Saved trained data to " + file + ".\n");
+}
